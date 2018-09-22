@@ -1,1 +1,204 @@
-HW3
+---
+title: "Optimization in Differnet Methods"
+author:
+  - Yuance He
+date: "09/20/2018"
+documentclass: article
+papersize: letter
+fontsize: 11pt
+
+output: pdf_document
+---
+
+# 1.
+
+The density function is:
+
+  $$f(x;\theta) = \frac{1}{\pi[1 + (x - \theta)^2]}$$
+  
+Likelihood function of $\theta$ is:
+
+  $$\prod_{i=1}^{n}f(x_i;\theta)$$
+  
+Log-likelihood function of $\theta$ is:
+  
+  $$l(\theta) = \sum_{i=1}^{n}\ln(\frac{1}{\pi[1 + (x_i - \theta)^2]})$$
+  
+  $$l(\theta) = -n\ln\pi - \sum_{i=1}^{n}\ln[1 + (x_i - \theta)^2]$$
+
+First derivative of log-likelihood function of $\theta$ is:
+  
+  $$l'(\theta) = -2\sum_{i=1}^{n}\frac{\theta-x_i}{1 + (\theta - x_i)^2}$$
+
+Second derivative of log-likelihood function of $\theta$ is:
+
+  $$l''(\theta) = -2\sum_{i = 1}^{n}\frac{1 + (\theta - x_i)^2 - 2(\theta - x_i)^2}{[1 +    (\theta - x_i) ^ 2]^2}$$
+
+  $$l''(\theta) = -2\sum_{i = 1}^{n}\frac{1-(\theta-X_i)^2}{[1 + (\theta - x_i) ^ 2]^2}$$
+
+Fisher information of $\theta$ is: $I(\theta) = -E[l''(\theta)]$
+
+  $$I(\theta) = 2nE[\frac{1 - (\theta - x_i)^2 }{[1 +(\theta - x_i) ^ 2]^2}]$$
+  $$I(\theta) = \frac{4n}{\pi}\int ^ {\infty}_{-\infty}\frac{(x - \theta)^2}{[1 + (x - \theta)^2]^3}dx$$
+  $$I(\theta) = \frac{4n}{\pi}\int ^ {\infty}_{-\infty}\frac{x^2}{[1 + x^2]^3}dx$$
+Let $x=tan\alpha, dx=\frac{1}{cos^2\alpha}d\alpha$,
+  $$I(\theta) = \frac{4n}{\pi}\int ^ {\pi/2}_{-\pi/2}sin^22\alpha d\alpha$$
+Finally,
+  $$I(\theta) = \frac{n}{2}$$
+
+# 2.
+
+```{r}
+set.seed(20180909)
+C=rcauchy(10,5)
+C
+
+lg <- function(theta){
+   l <- sum(dcauchy(C, location = theta, log= TRUE))
+   return(l)
+}
+
+lf <- Vectorize(lg)
+curve(lf, from = -30, to = 30, xname = "theta", ylab = "Log-likelihood")
+```
+
+# 3.
+
+```{r}
+set.seed(20180909)
+c <- rcauchy(10,5)
+
+lg1 <- function(theta){
+  first=-2*sum((theta-c)/(1+(theta-c)^2))
+  return(first)
+}
+lg2 <- function(theta){
+  second=-2*sum((1-(theta-c)^2)/(1+(theta-c)^2)^2)
+  return(second)
+}
+
+start=seq(-10, 20, by = 0.5)
+Newton <- function(start, max, tol = 1e-5){
+  sp = start
+   for(i in 1:max)
+   {
+      update = sp - lg1(sp)/lg2(sp)
+      if(abs(update -sp) < tol) break
+      sp = update
+   }
+  return( c(sp, i ) )
+}
+
+
+result = matrix(0, 61, 2)
+for(i in 1:61)
+{
+   result[i,] = Newton(start[i], 100)
+}
+colnames(result) = c('Root', '# of iteration')
+rownames(result) = c(seq(-10, 20, by = 0.5))
+
+knitr::kable(result)
+```
+
+
+From table above, we can clearly see that choosing appropriate starting point can easily reduce the iteration times. And for complex functions we need to increase our space of starting point, in case we could have some missing root.
+
+
+# 4.
+
+```{r}
+set.seed(20180909)
+c <- rcauchy(10,5)
+
+lg1 <- function(theta){
+  first=-2*sum((theta-c)/(1+(theta-c)^2))
+  return(first)
+}
+
+start=seq(-10, 20, by = 0.5)
+Fixed <- function(start,alpha, max, tol = 1e-5){
+  sp = start
+   for(i in 1:max)
+   {
+      update = sp + (alpha*lg1(sp))
+      if(abs(update -sp) < tol) break
+      sp = update
+   }
+  return( c(sp, i ) )
+}
+
+alpha1 <- matrix(0,61,2)
+alpha0.64 <- matrix(0,61,2)
+alpha0.25 <- matrix(0,61,2)
+
+for(i in 1:61)
+{
+   alpha1[i,] = Fixed(start[i], 1, 100)
+   alpha0.64[i,]=Fixed(start[i], 0.64, 100)
+   alpha0.25[i,]=Fixed(start[i], 0.25, 100)
+}
+colnames(alpha1) = c('Root', '# of iteration')
+rownames(alpha1) = c(seq(-10, 20, by = 0.5))
+colnames(alpha0.64) = c('Root', '# of iteration')
+rownames(alpha0.64) = c(seq(-10, 20, by = 0.5))
+colnames(alpha0.25) = c('Root', '# of iteration')
+rownames(alpha0.25) = c(seq(-10, 20, by = 0.5))
+knitr::kable(alpha1)
+knitr::kable(alpha0.64)
+knitr::kable(alpha0.25)
+```
+
+
+Basically there is not any convergence among 61 starting point when we take alpha equal to 1 or 0.64 in 100 times iterations. However, when alpha comes to 0.25, which means that we increase the speed of convergence, we can easily get convergency root 5.685 under no more that 45 times of iteration.
+
+
+# 5.
+
+From section 1, we have Fisher information of $\theta$ is: $I(\theta) = \frac{n}{2}$. Then we take a subsitution of $l''(\theta)$ by $\frac{n}{2}$ in Newton's method.
+
+```{r}
+set.seed(20180909)
+c <- rcauchy(10,5)
+
+lg1 <- function(theta){
+  first=-2*sum((theta-c)/(1+(theta-c)^2))
+  return(first)
+}
+
+start=seq(-10, 20, by = 0.5)
+Newton <- function(start, max, tol = 1e-5){
+  sp = start
+   for(i in 1:max)
+   {
+      update = sp + lg1(sp)/5
+      if(abs(update -sp) < tol) break
+      sp = update
+   }
+  return( c(sp, i ) )
+}
+
+
+result = matrix(0, 61, 2)
+for(i in 1:61)
+{
+   result[i,] = Newton(start[i], 100)
+}
+colnames(result) = c('Root', '# of iteration')
+rownames(result) = c(seq(-10, 20, by = 0.5))
+
+knitr::kable(result)
+```
+
+
+By using Fisher information, there is a significant reduction of iteration times than Newton' method. It does not only improve the efficency, also the accuracy.
+
+
+# 6.
+
+In my opinion, Newton's method is the most general basic way to compute roots of a function. It is very kind for me to understand the theory behind the metheod. However, in contrast to Fixed point and Fisher information, the Newton's method only has a "OK" performance. Fixed point and Fisher information methods have higher speed and less depend on starting point, which means we can use them to compute even more complex functions.
+
+
+
+
+  
